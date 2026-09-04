@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zumbis Bobos 5.0</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <h1 class="titulo">Zumbis Bobos 5.0</h1>
+    <section class="hud">
+      <span class="hud-item">Pontos: <strong id="score">0</strong></span>
+      <span class="hud-item">Vida: <strong id="vida">10</strong></span>
+      <span class="hud-item">Horda: <strong id="horda">1</strong>/10</span>
+      <span class="hud-item">Arma: <strong id="nivelArma">1</strong></span>
+      <span class="hud-item">Caixas: <strong id="municao">0</strong></span>
+      <span class="hud-item">Restantes: <strong id="restantes">0</strong></span>
+      <span class="hud-item">Especial: <strong id="especialTxt">PRONTO</strong></span>
+      <span class="hud-item">Moedas: <strong id="moedas">0</strong></span>
+      <span class="hud-item">Amigo: <strong id="aliadoVida">-</strong></span>
+      <button id="btnPausar" class="btn-pause" type="button">Pausar</button>
+      <button id="btnInventario" class="btn-pause" type="button">Mochila</button>
+      <button id="btnMenu" class="btn-pause" type="button">Menu</button>
+      <button id="btnConfigHud" class="btn-pause" type="button">Config</button>
+    </section>
+    <section id="bossBar" class="boss-bar">
+      <div id="bossNome" class="boss-nome">CHEFAO</div>
+      <div class="boss-fundo"><div id="bossVida" class="boss-vida"></div></div>
+    </section>
+    <section class="canvas-wrap">
+      <canvas id="gameCanvas" width="1000" height="600"></canvas>
+      <canvas id="miniMapa" width="180" height="120"></canvas>
+      <div id="mensagem" class="mensagem"></div>
+    </section>
+    <p class="ajuda"><b>WASD</b> mover | <b>Mouse</b> atirar | <b>E</b> especial | <b>F</b> taco | <b>I</b> mochila</p>
+  </main>
+
+  <div id="introBox" class="overlay aberto overlay-inicio">
+    <canvas id="fogoCanvas" class="fogo-canvas"></canvas>
+    <div class="menu-cine">
+      <div class="menu-esq">
+        <p class="selo">Sobrevivência</p>
+        <h1 class="logo-jogo">Zumbis Bobos</h1>
+        <p class="logo-ver">5.0</p>
+        <nav class="menu-nav">
+          <button type="button" id="btnAbrirSelect">Jogar</button>
+          <button type="button" id="btnLoja">Loja</button>
+          <button type="button" id="btnHistorias">Histórias</button>
+          <button type="button" id="btnComoJogar">Como Jogar</button>
+          <button type="button" id="btnConfig">Configurações</button>
+        </nav>
+        <p class="credito">Criado por <b>Marco Antonio</b> com o Grok (xAI)</p>
+        <p class="credito">Colaboradores: <b>Mateus Vidotto</b> e <b>Pedro Henrique</b></p>
+        <p class="credito">Primeiro a zerar: <b>Arthur Miguel</b></p>
+      </div>
+    </div>
+    <div id="selectBox" class="select-cine" hidden>
+      <div class="select-painel">
+        <h2>Escolher sobrevivente</h2>
+        <p class="rank">Personagem</p>
+        <div class="heroes" id="listaHerois"></div>
+        <p class="rank">Especialidade</p>
+        <div class="heroes" id="listaClasses"></div>
+        <p class="diff-desc" id="classeDesc">Cada classe tem uma habilidade.</p>
+        <div class="ficha">
+          <h3 id="fichaNome">Rick Grimes</h3>
+          <p class="stat-label">Vida</p>
+          <div class="stat-bar"><span id="barVida" style="width:80%"></span></div>
+          <p class="stat-label">Poder</p>
+          <div class="stat-bar poder"><span id="barPoder" style="width:60%"></span></div>
+          <ul class="ficha-abs" id="fichaAbs"></ul>
+        </div>
+        <p class="rank">Dificuldade</p>
+        <div class="diffs">
+          <button type="button" class="btn-diff ativo" data-diff="facil">Fácil</button>
+          <button type="button" class="btn-diff" data-diff="medio">Médio</button>
+          <button type="button" class="btn-diff" data-diff="dificil">Difícil</button>
+          <button type="button" class="btn-diff bgl" data-diff="bgl">O BGL</button>
+        </div>
+        <p class="diff-desc" id="diffDesc">Menos zumbis e mais vida.</p>
+        <div class="botoes">
+          <button id="btnVoltarMenu" class="btn sec" type="button">Voltar</button>
+          <button id="btnJogarAgora" class="btn" type="button">Entrar no Mapa</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="explicaBox" class="overlay">
+    <div class="card">
+      <h2>Como Jogar</h2>
+      <ul class="lista">
+        <li><b>WASD</b> mover</li>
+        <li><b>Mouse</b> atirar</li>
+        <li><b>E</b> especial ou mercado</li>
+        <li><b>F</b> corpo a corpo</li>
+        <li><b>I</b> mochila</li>
+      </ul>
+      <div class="botoes">
+        <button id="btnEntendi" class="btn" type="button">Entendi, Jogar!</button>
+        <button id="btnVoltar" class="btn sec" type="button">Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOverBox" class="overlay">
+    <div class="card perdeu">
+      <h2>A cidade ainda precisa de você</h2>
+      <p id="derrotaTexto"></p>
+      <div class="stats">
+        <div><span>Pontos</span><strong id="finalScore">0</strong></div>
+        <div><span>Horda</span><strong id="finalHorda">1</strong></div>
+        <div><span>Zumbis</span><strong id="finalZumbis">0</strong></div>
+        <div><span>Tempo</span><strong id="finalTempo">0s</strong></div>
+      </div>
+      <div class="botoes">
+        <button id="btnReiniciar" class="btn" type="button">Tentar de novo</button>
+        <button id="btnMenuGameOver" class="btn sec" type="button">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="vitoriaBox" class="overlay">
+    <div class="card">
+      <h2>A cidade foi salva!</h2>
+      <p class="rank">Título: <strong id="vitoriaRank">Heroi Bobo</strong></p>
+      <p id="vitoriaHistoria"></p>
+      <div class="stats">
+        <div><span>Pontos</span><strong id="vitoriaScore">0</strong></div>
+        <div><span>Arma</span><strong id="vitoriaNivel">1</strong></div>
+        <div><span>Zumbis</span><strong id="vitoriaZumbis">0</strong></div>
+        <div><span>Chefões</span><strong id="vitoriaChefes">0</strong></div>
+        <div><span>Especiais</span><strong id="vitoriaEspeciais">0</strong></div>
+        <div><span>Tempo</span><strong id="vitoriaTempo">0s</strong></div>
+      </div>
+      <div class="botoes">
+        <button id="btnReiniciarVitoria" class="btn" type="button">Jogar novamente</button>
+        <button id="btnMenuVitoria" class="btn sec" type="button">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pauseBox" class="overlay">
+    <div class="card">
+      <h2>Jogo pausado</h2>
+      <div class="botoes">
+        <button id="btnAbrirLojaPause" class="btn" type="button">Loja</button>
+        <button id="btnConfigPause" class="btn" type="button">Configurações</button>
+        <button id="btnMenuPause" class="btn" type="button">Menu</button>
+        <button id="btnInvPause" class="btn" type="button">Mochila</button>
+        <button id="btnContinuar" class="btn sec" type="button">Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="configBox" class="overlay">
+    <div class="card">
+      <h2>Configurações</h2>
+      <div class="config-lista">
+        <label class="config-item"><input type="checkbox" id="cfgMinimap" checked> Minimapa</label>
+        <label class="config-item"><input type="checkbox" id="cfgDano" checked> Números de dano</label>
+        <label class="config-item"><input type="checkbox" id="cfgParticulas" checked> Partículas</label>
+        <label class="config-item"><input type="checkbox" id="cfgFlash" checked> Flash</label>
+        <label class="config-item"><input type="checkbox" id="cfgHistoria" checked> Histórias</label>
+        <label class="config-item">Qualidade
+          <select id="cfgQualidade">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </label>
+      </div>
+      <button id="btnFecharConfig" class="btn" type="button">Salvar</button>
+    </div>
+  </div>
+
+  <div id="invBox" class="overlay">
+    <div class="card">
+      <h2>Mochila</h2>
+      <div id="invLista" class="inv-grid"></div>
+      <button id="btnFecharInv" class="btn sec" type="button">Fechar</button>
+    </div>
+  </div>
+
+  <div id="historiasMenuBox" class="overlay">
+    <div class="card">
+      <h2>Histórias dos Chefões</h2>
+      <div id="historiasLista" class="historias-lista"></div>
+      <button id="btnFecharHistorias" class="btn sec" type="button">Voltar</button>
+    </div>
+  </div>
+
+  <div id="lojaBox" class="overlay">
+    <div class="card card-loja">
+      <h2>Loja do Herói</h2>
+      <p>Moedas: <strong id="lojaMoedas">0</strong></p>
+      <p id="lojaAviso">Compre e equipe.</p>
+      <div class="loja-abas">
+        <button type="button" class="btn-aba ativo" data-aba="armas">Armas</button>
+        <button type="button" class="btn-aba" data-aba="skins">Skins</button>
+        <button type="button" class="btn-aba" data-aba="pocoes">Poções</button>
+        <button type="button" class="btn-aba" data-aba="melhorias">Melhorias</button>
+      </div>
+      <div id="lojaLista" class="loja-lista"></div>
+      <button id="btnFecharLoja" class="btn sec" type="button">Voltar</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
