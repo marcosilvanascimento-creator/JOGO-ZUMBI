@@ -1,1 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zumbis Bobos 7.0</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <!-- TELA INICIAL -->
+    <div id="start-screen" class="screen">
+      <h1>ZUMBIS BOBOS 7.0</h1>
+      <p class="subtitle">Apocalipse Cartoon</p>
+      
+      <div class="selection-box">
+        <h3>Escolha seu Herói:</h3>
+        <select id="hero-select">
+          <option value="rick">Rick Grimes (+Recarga)</option>
+          <option value="daryl">Daryl Dixon (+Dano)</option>
+          <option value="michonne">Michonne (+Velocidade)</option>
+          <option value="joel">Joel (+Vida)</option>
+          <option value="ellie">Ellie (+Especial)</option>
+        </select>
 
+        <h3>Dificuldade:</h3>
+        <select id="diff-select">
+          <option value="facil">Fácil</option>
+          <option value="medio" selected>Médio</option>
+          <option value="dificil">Difícil</option>
+          <option value="bgl">O BGL (Insano)</option>
+        </select>
+      </div>
+
+      <button id="btn-start" class="main-btn">JOGAR AGORA</button>
+
+      <div class="credits">
+        <p>Criado por Marco Antonio com o Grok (xAI)</p>
+        <p>Colaboradores: Mateus Vidotto e Pedro Henrique | 1º a zerar: Arthur Miguel</p>
+      </div>
+    </div>
+
+    <!-- HUD DO JOGO -->
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <div id="hp-bar">Vidas: <span id="hp-count">10</span> ❤️</div>
+        <div id="wave-info">Horda: <span id="wave-num">1</span>/10</div>
+        <div id="coins-info">Moedas: 🪙 <span id="coins-count">0</span></div>
+      </div>
+      
+      <div id="weapon-info">
+        Arma Nível <span id="weapon-lvl">1</span> | Pressione <strong>[E]</strong> para Especial | <strong>[Q]</strong> Ímã
+      </div>
+
+      <div id="boss-bar-container" class="hidden">
+        <div class="boss-label">CHEFÃO</div>
+        <div id="boss-bar-bg"><div id="boss-bar-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- CANVAS DO JOGO -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- TELA DE LOJA / PAUSA -->
+    <div id="shop-screen" class="screen hidden overlay">
+      <h2>LOJA DE UPGRADES</h2>
+      <div class="shop-grid">
+        <div class="shop-item">
+          <h4>Evoluir Arma (Nv. <span id="shop-weapon-lvl">1</span>)</h4>
+          <p>Aumenta dano e projéteis</p>
+          <button id="buy-weapon">Melhorar (50 Moedas)</button>
+        </div>
+        <div class="shop-item">
+          <h4>Vida Extra</h4>
+          <p>Recupera 2 corações</p>
+          <button id="buy-hp">Comprar (30 Moedas)</button>
+        </div>
+        <div class="shop-item">
+          <h4>Ajudante (Jogador 2)</h4>
+          <p>IA que elimina zumbis fracos</p>
+          <button id="buy-helper">Contratar (100 Moedas)</button>
+        </div>
+      </div>
+      <button id="btn-resume" class="main-btn">CONTINUAR [P]</button>
+    </div>
+
+    <!-- GAME OVER / VITÓRIA -->
+    <div id="end-screen" class="screen hidden overlay">
+      <h2 id="end-title">GAME OVER</h2>
+      <p id="end-stats"></p>
+      <button id="btn-restart" class="main-btn">JOGAR NOVAMENTE</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
