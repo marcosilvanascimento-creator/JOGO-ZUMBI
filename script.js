@@ -1,308 +1,78 @@
-// AGUARDAR O CARREGAMENTO
-window.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
-
-  // Ajustar tamanho do Canvas
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // ESTADO DO JOGO
-  let gameState = 'MENU'; // MENU, PLAYING, SHOP, GAMEOVER
-  let coins = parseInt(localStorage.getItem('zb_coins') || '0');
-  let wave = 1;
-  let score = 0;
-  let keys = {};
-  let mousePos = { x: 0, y: 0 };
-
-  // TECLAS DE ATALHO & CONTROLES
-  window.addEventListener('keydown', (e) => {
-    keys[e.key.toLowerCase()] = true;
-
-    // Pausa / Loja (P)
-    if (e.key.toLowerCase() === 'p' && (gameState === 'PLAYING' || gameState === 'SHOP')) {
-      toggleShop();
-    }
-
-    // Cheats de Dev
-    if (gameState === 'PLAYING') {
-      if (e.key === 'F9') addCoins(100);
-      if (e.shiftKey && e.key === 'M') addCoins(500);
-    }
-  });
-
-  window.addEventListener('keyup', (e) => {
-    keys[e.key.toLowerCase()] = false;
-  });
-
-  canvas.addEventListener('mousemove', (e) => {
-    mousePos.x = e.clientX;
-    mousePos.y = e.clientY;
-  });
-
-  canvas.addEventListener('mousedown', () => {
-    if (gameState === 'PLAYING') shoot();
-  });
-
-  // JOGADOR
-  const player = {
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    radius: 20,
-    speed: 4,
-    hp: 10,
-    maxHp: 10,
-    weaponLvl: 1,
-    lastShot: 0,
-    shotCooldown: 250, // ms
-    color: '#3498db'
-  };
-
-  // POOLS DE ENTIDADES
-  let bullets = [];
-  let zombis = [];
-  let particles = [];
-  let drops = [];
-
-  // ELEMENTOS DA INTERFACE (DOM)
-  const startScreen = document.getElementById('start-screen');
-  const shopScreen = document.getElementById('shop-screen');
-  const endScreen = document.getElementById('end-screen');
-  const hud = document.getElementById('hud');
-  const hpCount = document.getElementById('hp-count');
-  const waveNum = document.getElementById('wave-num');
-  const coinsCount = document.getElementById('coins-count');
-  const weaponLvlText = document.getElementById('weapon-lvl');
-  const shopWeaponLvlText = document.getElementById('shop-weapon-lvl');
-
-  // BOTOES
-  document.getElementById('btn-start').onclick = startGame;
-  document.getElementById('btn-resume').onclick = toggleShop;
-  document.getElementById('btn-restart').onclick = startGame;
-  document.getElementById('buy-weapon').onclick = upgradeWeapon;
-  document.getElementById('buy-hp').onclick = buyHp;
-
-  function addCoins(amount) {
-    coins += amount;
-    localStorage.setItem('zb_coins', coins);
-    coinsCount.textContent = coins;
-  }
-
-  function startGame() {
-    gameState = 'PLAYING';
-    player.hp = player.maxHp;
-    player.weaponLvl = 1;
-    player.x = canvas.width / 2;
-    player.y = canvas.height / 2;
-    wave = 1;
-    score = 0;
-    bullets = [];
-    zombis = [];
-    particles = [];
-
-    startScreen.classList.add('hidden');
-    endScreen.classList.add('hidden');
-    shopScreen.classList.add('hidden');
-    hud.classList.remove('hidden');
-
-    updateHUD();
-    spawnWave();
-    requestAnimationFrame(gameLoop);
-  }
-
-  function updateHUD() {
-    hpCount.textContent = player.hp;
-    waveNum.textContent = wave;
-    coinsCount.textContent = coins;
-    weaponLvlText.textContent = player.weaponLvl;
-    shopWeaponLvlText.textContent = player.weaponLvl;
-  }
-
-  function toggleShop() {
-    if (gameState === 'PLAYING') {
-      gameState = 'SHOP';
-      shopScreen.classList.remove('hidden');
-    } else if (gameState === 'SHOP') {
-      gameState = 'PLAYING';
-      shopScreen.classList.add('hidden');
-      requestAnimationFrame(gameLoop);
-    }
-  }
-
-  function upgradeWeapon() {
-    const cost = player.weaponLvl * 50;
-    if (coins >= cost && player.weaponLvl < 30) {
-      addCoins(-cost);
-      player.weaponLvl++;
-      updateHUD();
-    }
-  }
-
-  function buyHp() {
-    if (coins >= 30 && player.hp < player.maxHp) {
-      addCoins(-30);
-      player.hp = Math.min(player.maxHp, player.hp + 2);
-      updateHUD();
-    }
-  }
-
-  function spawnWave() {
-    const count = 5 + wave * 3;
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 400 + Math.random() * 300;
-      zombis.push({
-        x: player.x + Math.cos(angle) * dist,
-        y: player.y + Math.sin(angle) * dist,
-        radius: 18,
-        speed: 1.5 + Math.random() * 0.8,
-        hp: 2 + wave,
-        maxHp: 2 + wave,
-        color: '#2ecc71'
-      });
-    }
-  }
-
-  function shoot() {
-    const now = Date.now();
-    if (now - player.lastShot < player.shotCooldown) return;
-    player.lastShot = now;
-
-    const angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
-    const numBullets = 1 + Math.floor(player.weaponLvl / 5);
-
-    for (let i = 0; i < numBullets; i++) {
-      const spread = (i - (numBullets - 1) / 2) * 0.15;
-      bullets.push({
-        x: player.x,
-        y: player.y,
-        vx: Math.cos(angle + spread) * 10,
-        vy: Math.sin(angle + spread) * 10,
-        radius: 5,
-        damage: 1 + Math.floor(player.weaponLvl * 0.8)
-      });
-    }
-  }
-
-  // LOOP PRINCIPAL
-  function gameLoop() {
-    if (gameState !== 'PLAYING') return;
-
-    update();
-    render();
-
-    requestAnimationFrame(gameLoop);
-  }
-
-  function update() {
-    // Mover Jogador
-    if (keys['w'] || keys['arrowup']) player.y -= player.speed;
-    if (keys['s'] || keys['arrowdown']) player.y += player.speed;
-    if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
-    if (keys['d'] || keys['arrowright']) player.x += player.speed;
-
-    // Atualizar Projéteis
-    bullets.forEach((b, i) => {
-      b.x += b.vx;
-      b.y += b.vy;
-
-      if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
-        bullets.splice(i, 1);
-      }
-    });
-
-    // Atualizar Zumbis
-    zombis.forEach((z, zIdx) => {
-      const angle = Math.atan2(player.y - z.y, player.x - z.x);
-      z.x += Math.cos(angle) * z.speed;
-      z.y += Math.sin(angle) * z.speed;
-
-      // Colisão Zumbi x Jogador
-      const distP = Math.hypot(player.x - z.x, player.y - z.y);
-      if (distP < player.radius + z.radius) {
-        player.hp -= 1;
-        updateHUD();
-        zombis.splice(zIdx, 1);
-
-        if (player.hp <= 0) {
-          gameOver();
-        }
-      }
-
-      // Colisão Zumbi x Balas
-      bullets.forEach((b, bIdx) => {
-        const distB = Math.hypot(b.x - z.x, b.y - z.y);
-        if (distB < b.radius + z.radius) {
-          z.hp -= b.damage;
-          bullets.splice(bIdx, 1);
-
-          if (z.hp <= 0) {
-            zombis.splice(zIdx, 1);
-            addCoins(2);
-            score += 10;
-          }
-        }
-      });
-    });
-
-    // Checar Fim da Onda
-    if (zombis.length === 0) {
-      wave++;
-      if (wave > 10) {
-        victory();
-      } else {
-        updateHUD();
-        spawnWave();
-      }
-    }
-  }
-
-  function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Desenhar Jogador
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.fillStyle = player.color;
-    ctx.fill();
-    ctx.closePath();
-
-    // Desenhar Projéteis
-    ctx.fillStyle = '#f1c40f';
-    bullets.forEach(b => {
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.closePath();
-    });
-
-    // Desenhar Zumbis
-    zombis.forEach(z => {
-      ctx.beginPath();
-      ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
-      ctx.fillStyle = z.color;
-      ctx.fill();
-      ctx.closePath();
-    });
-  }
-
-  function gameOver() {
-    gameState = 'GAMEOVER';
-    hud.classList.add('hidden');
-    endScreen.classList.remove('hidden');
-    document.getElementById('end-title').textContent = 'GAME OVER';
-    document.getElementById('end-stats').textContent = `Você sobreviveu até a Horda ${wave} | Pontuação: ${score}`;
-  }
-
-  function victory() {
-    gameState = 'GAMEOVER';
-    hud.classList.add('hidden');
-    endScreen.classList.remove('hidden');
-    document.getElementById('end-title').textContent = 'VITÓRIA SENSACIONAL!';
-    document.getElementById('end-stats').textContent = `Parabéns! Derrotou todas as hordas! Pontuação Final: ${score}`;
-  }
-});
+(() => {
+"use strict";
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d"),$=id=>document.getElementById(id);
+const W=1800,H=1100;let cw=innerWidth,ch=innerHeight-68,dpr=1;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);cw=innerWidth;ch=Math.max(300,innerHeight-68);canvas.width=cw*dpr;canvas.height=ch*dpr;canvas.style.width=cw+"px";canvas.style.height=ch+"px";ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener("resize",resize);resize();
+const WEAPONS={
+laser:{name:"Pistola Laser",color:"#ffe66d",speed:13,damage:10,cool:190,desc:"Tiros rápidos e knockback leve."},
+spread:{name:"Espingarda Festiva",color:"#ff66c4",speed:11,damage:7,cool:520,desc:"Leque de projéteis; ricochete no Nv 15+."},
+frost:{name:"Lançador do Gelante",color:"#5de7ff",speed:10,damage:8,cool:360,desc:"Desacelera 40% e congela."},
+flame:{name:"Lança-Chamas de Açúcar",color:"#ff72bd",speed:8,damage:5,cool:90,desc:"Queimadura por 4 segundos."},
+star:{name:"Shuriken Cósmica",color:"#ffd166",speed:12,damage:12,cool:310,desc:"Perfura 3 zumbis e explode."},
+crossbow:{name:"Besta Tecnológica",color:"#b86cff",speed:15,damage:25,cool:650,desc:"Crítico massivo; área elétrica no Nv 15+."},
+bow:{name:"Arco Enferrujado",color:"#69e06d",speed:12,damage:13,cool:430,desc:"Veneno que contamina outros zumbis."},
+bazooka:{name:"Bazuca Boba",color:"#ff9f43",speed:8,damage:38,cool:900,desc:"Explosão enorme e arremesso."}
+};
+const stages=[
+{name:"Bairro Alegre",theme:"#244d2b",buildings:[["🏠",170,170,210,150],["🏪",1250,150,280,170],["🏥",790,780,300,150]],survivors:2},
+{name:"Centro Abandonado",theme:"#39432b",buildings:[["🏬",120,130,320,190],["🔧",1280,120,300,180],["🏠",720,760,240,170],["🏪",1050,430,260,150]],survivors:3},
+{name:"Zona Industrial",theme:"#3b3d35",buildings:[["🏭",150,150,330,210],["📦",1260,160,320,200],["🔧",650,760,300,160]],survivors:3},
+{name:"Hospital da Esperança",theme:"#23413b",buildings:[["🏥",690,120,400,240],["🏠",140,760,250,170],["🏪",1300,760,250,170]],survivors:4},
+{name:"Shopping Morto",theme:"#3d303d",buildings:[["🛍️",130,130,400,220],["🍔",1200,140,300,190],["🎮",690,760,350,170]],survivors:4},
+{name:"Subúrbio Perdido",theme:"#35452c",buildings:[["🏠",120,130,260,180],["🏠",450,130,260,180],["🏠",1280,130,280,190],["🏚️",700,770,300,160]],survivors:4},
+{name:"Estação Zero",theme:"#343e49",buildings:[["🚉",120,150,420,210],["🛒",1240,150,300,190],["🔧",720,760,320,160]],survivors:5},
+{name:"Parque do Caos",theme:"#21462d",buildings:[["🌳",140,130,300,180],["🏪",1250,130,290,180],["🏠",760,770,260,150]],survivors:5},
+{name:"Base dos Sobreviventes",theme:"#3b432a",buildings:[["🏕️",150,140,330,210],["🏥",1260,130,300,190],["🔧",720,760,320,160]],survivors:6},
+{name:"Cidade do Chefe",theme:"#43262a",buildings:[["🏰",680,120,440,300],["🏚️",140,770,260,160],["🏪",1280,770,270,160]],survivors:6}
+];
+let state="menu",stage=0,wave=1,score=0,coins=0,xp=0,level=1,rescued=0,spawnTimer=0,last=0,shotAt=0,specialAt=0,meleeAt=0,camera={x:0,y:0},keys={},mouse={x:0,y:0,down:false},particles=[],bullets=[],enemies=[],drops=[],survivors=[],boss=null;
+let difficulty="normal",hero="normal";
+let player={x:900,y:550,r:18,hp:10,maxHp:10,speed:3.4,weapon:"laser",weaponLevel:1,inv:0};
+function resetGame(){stage=0;wave=1;score=0;coins=0;xp=0;level=1;rescued=0;bullets=[];enemies=[];drops=[];particles=[];boss=null;player={x:900,y:550,r:18,hp:hero==="tank"?14:10,maxHp:hero==="tank"?14:10,speed:hero==="scout"?4.1:3.4,weapon:"laser",weaponLevel:1,inv:0};loadStage()}
+function loadStage(){const s=stages[stage];player.x=900;player.y=550;wave=1;rescued=0;bullets=[];enemies=[];drops=[];particles=[];boss=null;survivors=[];for(let i=0;i<s.survivors;i++)survivors.push({x:180+Math.random()*1440,y:390+Math.random()*320,r:14,rescued:false});$("stage").textContent=stage+1;$("bossBox").classList.add("hidden");showMsg(s.name);updateQuest();for(let i=0;i<7;i++)spawnZombie()}
+function spawnZombie(type="normal"){const side=Math.floor(Math.random()*4),x=side===0?-40:side===1?W+40:Math.random()*W,y=side===2?-40:side===3?H+40:Math.random()*H,mult=difficulty==="easy"?.8:difficulty==="hard"?1.35:1;const hp=(type==="runner"?18:28)+wave*5;enemies.push({x:x,y:y,r:type==="runner"?13:16,hp:hp,maxHp:hp,speed:(type==="runner"?2.7:1.35)*mult,slow:0,freeze:0,burn:0,poison:0})}
+function spawnBoss(){const hp=(500+stage*180)*(difficulty==="easy"?.8:difficulty==="hard"?1.35:1);boss={x:900,y:160,r:42,hp:hp,maxHp:hp,speed:1.15+stage*.06};$("bossName").textContent=["Rei do Lixo","Mega-Mordedor","Prefeito Zumbi","Doutor Podre","Chefão do Shopping","Trem Zumbi","Senhor Caos","Jardineiro Morto","General Miolo","Rei dos Zumbis Bobos"][stage];$("bossBox").classList.remove("hidden")}
+function updateHud(){$("hp").textContent=Math.max(0,Math.ceil(player.hp))+"/"+player.maxHp;$("level").textContent=level;$("xp").textContent=xp+"/"+(20+level*12);$("coins").textContent=coins;$("weapon").textContent=WEAPONS[player.weapon].name;$("weaponLevel").textContent=player.weaponLevel}
+function updateQuest(){const n=survivors.filter(s=>!s.rescued).length;$("quest").textContent=n?"Resgate os sobreviventes ("+rescued+"/"+survivors.length+"). Procure pessoas pelo mapa.":boss?"Derrote "+$("bossName").textContent+"!":"Horda "+wave+"/10 — elimine os zumbis."}
+function showMsg(t){$("message").textContent=t;$("message").classList.add("messageShow");setTimeout(()=>$("message").classList.remove("messageShow"),1200)}
+function burst(x,y,color,n){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=.5+Math.random()*3;particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:25+Math.random()*25,color:color})}}
+function addXP(n){xp+=n;while(xp>=20+level*12){xp-=20+level*12;level++;player.maxHp++;player.hp=player.maxHp;showMsg("NÍVEL "+level+"!")}updateHud()}
+function worldMouse(){return{x:mouse.x+camera.x,y:mouse.y+camera.y}}
+function aim(){const m=worldMouse();return Math.atan2(m.y-player.y,m.x-player.x)}
+function knock(z,n){const a=Math.atan2(z.y-player.y,z.x-player.x);z.x+=Math.cos(a)*n;z.y+=Math.sin(a)*n}
+function shoot(){if(state!=="playing")return;const w=WEAPONS[player.weapon],now=performance.now();if(now-shotAt<w.cool/(1+player.weaponLevel*.025))return;shotAt=now;const count=1+Math.floor(player.weaponLevel/5),a=aim();for(let i=0;i<count;i++){const spread=player.weapon==="spread"?w.spread:(count>1?(i-(count-1)/2)*.08:0);bullets.push({x:player.x,y:player.y,vx:Math.cos(a+spread)*w.speed,vy:Math.sin(a+spread)*w.speed,r:player.weapon==="bazooka"?7:4,damage:w.damage*(1+.08*(player.weaponLevel-1)),life:player.weapon==="bazooka"?100:85,bounces:0,pierce:player.weapon==="star"?3:0,hit:[],weapon:player.weapon})}}
+function melee(){const now=performance.now();if(now-meleeAt<550)return;meleeAt=now;const a=aim();for(const z of enemies){const d=Math.hypot(z.x-player.x,z.y-player.y),ang=Math.atan2(z.y-player.y,z.x-player.x);if(d<75&&Math.abs(Math.atan2(Math.sin(ang-a),Math.cos(ang-a)))<1.3){z.hp-=25;knock(z,35);burst(z.x,z.y,"#fff",8)}}if(boss&&Math.hypot(boss.x-player.x,boss.y-player.y)<95)boss.hp-=25}
+function special(){const now=performance.now();if(now-specialAt<7000)return;specialAt=now;const w=player.weapon;burst(player.x,player.y,WEAPONS[w].color,45);for(const z of enemies){const d=Math.hypot(z.x-player.x,z.y-player.y);if(d<260){if(w==="frost"){z.slow=180;z.freeze=45;z.hp-=20}else if(w==="flame"){z.burn=240;z.hp-=20}else if(w==="bazooka"){z.hp-=100;knock(z,120)}else if(w==="crossbow"){z.hp-=70}else z.hp-=45}}if(w==="star")for(let i=0;i<18;i++){const a=i*Math.PI*2/18;bullets.push({x:player.x,y:player.y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,r:5,damage:35,life:55,pierce:3,hit:[],weapon:w})}cleanupEnemies();updateQuest()}
+function cleanupEnemies(){for(let i=enemies.length-1;i>=0;i--)if(enemies[i].hp<=0){const z=enemies[i];score+=10;coins+=2;addXP(4);drops.push({x:z.x,y:z.y,type:Math.random()<.55?"coin":"heart",r:9});burst(z.x,z.y,WEAPONS[player.weapon].color,8);enemies.splice(i,1)}}
+function damagePlayer(n){if(player.inv>0)return;player.hp-=n;player.inv=45;updateHud();if(player.hp<=0)end(false)}
+function interact(){const near=survivors.find(s=>!s.rescued&&Math.hypot(s.x-player.x,s.y-player.y)<55);if(near){near.rescued=true;rescued++;coins+=15;addXP(10);showMsg("SOBREVIVENTE RESGATADO!");updateQuest();return}const b=stages[stage].buildings.find(v=>player.x>v[1]-25&&player.x<v[1]+v[3]+25&&player.y>v[2]-25&&player.y<v[2]+v[4]+25);if(b)openBuilding(b[0])}
+function openBuilding(icon){if(["🏪","🛍️","🛒","🍔","🔧","🏭"].includes(icon)){openShop(icon==="🔧"||icon==="🏭"?"OFICINA":"LOJA");return}if(icon==="🏥"){openModal("<h2>🏥 Posto de Cura</h2><p>Recupere 5 de vida por 10 moedas.</p><button class='primary' onclick='heal()'>CURAR • 10 🪙</button>");return}openModal("<h2>"+icon+" CASA</h2><p>Você encontra pistas e suprimentos. Procure sobreviventes próximos.</p>")}
+function openShop(title){let html="<h2>🏪 "+title+"</h2><p>Moedas: 🪙 "+coins+"</p><div class='grid'>";for(const id in WEAPONS){const w=WEAPONS[id];html+="<div class='card'><h3>"+w.name+"</h3><p>"+w.desc+"</p><button onclick=\"buyWeapon('"+id+"')\">"+(player.weapon===id?"EQUIPADA":"COMPRAR • 20 🪙")+"</button></div>"}html+="</div><button class='primary' onclick='upgradeWeapon()'>Aprimorar "+WEAPONS[player.weapon].name+" • "+player.weaponLevel+"/30 • "+player.weaponLevel*12+" 🪙</button>";openModal(html)}
+window.buyWeapon=function(id){if(player.weapon===id){closeModal();return}if(coins>=20){coins-=20;player.weapon=id;updateHud();openShop("LOJA")}};
+window.upgradeWeapon=function(){const cost=player.weaponLevel*12;if(player.weaponLevel<30&&coins>=cost){coins-=cost;player.weaponLevel++;updateHud();openShop("LOJA")}};
+window.heal=function(){if(coins>=10){coins-=10;player.hp=Math.min(player.maxHp,player.hp+5);updateHud();openBuilding("🏥")}};
+function openModal(html){$("modalContent").innerHTML=html;$("modal").classList.remove("hidden")}function closeModal(){$("modal").classList.add("hidden")}
+function update(dt){if(state!=="playing")return;const sp=player.speed*(keys.shift?1.9:1);let dx=(keys.d?1:0)-(keys.a?1:0),dy=(keys.s?1:0)-(keys.w?1:0);if(dx||dy){const l=Math.hypot(dx,dy);player.x+=dx/l*sp;player.y+=dy/l*sp}player.x=Math.max(25,Math.min(W-25,player.x));player.y=Math.max(25,Math.min(H-25,player.y));if(player.inv>0)player.inv--;if(mouse.down)shoot();
+for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.x+=b.vx;b.y+=b.vy;b.life--;if(player.weapon==="spread"&&player.weaponLevel>=15&&(b.x<15||b.x>W-15||b.y<15||b.y>H-15)){b.vx*=-1;b.vy*=-1;b.bounces++;if(b.bounces>1)b.life=0}for(const z of enemies){if(b.hit.includes(z))continue;if(Math.hypot(b.x-z.x,b.y-z.y)<b.r+z.r){b.hit.push(z);z.hp-=b.damage;if(b.weapon==="laser")knock(z,9);if(b.weapon==="frost")z.slow=180;if(b.weapon==="flame")z.burn=240;if(b.weapon==="bow")z.poison=180;if(b.weapon==="star"&&b.pierce>0)b.pierce--;else if(!["star","flame"].includes(b.weapon))b.life=0;if(b.weapon==="bazooka")for(const q of enemies)if(Math.hypot(q.x-b.x,q.y-b.y)<100){q.hp-=35;knock(q,80)}}}if(b.life<=0)bullets.splice(i,1)}
+for(const z of enemies){if(z.slow>0)z.slow--;if(z.freeze>0)z.freeze--;if(z.burn>0){z.burn--;if(z.burn%30===0)z.hp-=5}if(z.poison>0){z.poison--;if(z.poison%30===0){z.hp-=3;for(const q of enemies)if(q!==z&&Math.hypot(q.x-z.x,q.y-z.y)<65)q.poison=90}}if(z.freeze===0){const a=Math.atan2(player.y-z.y,player.x-z.x);z.x+=Math.cos(a)*z.speed*(z.slow>0?.6:1)}if(Math.hypot(z.x-player.x,z.y-player.y)<z.r+player.r){damagePlayer(.35);knock(z,25)}}
+if(boss){const a=Math.atan2(player.y-boss.y,player.x-boss.x);boss.x+=Math.cos(a)*boss.speed;boss.y+=Math.sin(a)*boss.speed;if(Math.hypot(boss.x-player.x,boss.y-player.y)<boss.r+player.r)damagePlayer(.7);$("bossHp").style.width=Math.max(0,boss.hp/boss.maxHp*100)+"%";if(boss.hp<=0){coins+=100;score+=1000;addXP(40);showMsg("CHEFÃO DERROTADO! +100 🪙");boss=null;$("bossBox").classList.add("hidden")}}
+for(let i=drops.length-1;i>=0;i--){const d=drops[i];if(Math.hypot(d.x-player.x,d.y-player.y)<30){if(d.type==="coin")coins+=5;else player.hp=Math.min(player.maxHp,player.hp+2);drops.splice(i,1)}}cleanupEnemies();
+if(enemies.length<4+wave*2&&!boss){spawnTimer-=dt;if(spawnTimer<=0){spawnTimer=600;spawnZombie(Math.random()<.15?"runner":"normal")}}
+if(enemies.length===0&&!boss&&rescued>=survivors.length){wave++;if(wave===5||wave===10)spawnBoss();if(wave>10)nextStage();else{for(let i=0;i<5+wave*2;i++)spawnZombie();updateQuest()}}
+for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.life--;if(p.life<=0)particles.splice(i,1)}updateHud();updateQuest()}
+function nextStage(){if(stage>=9)end(true);else{stage++;loadStage()}}
+function end(win){state="end";$("gameOver").classList.remove("hidden");$("endTitle").textContent=win?"🏆 VITÓRIA!":"💀 GAME OVER";$("endText").textContent=win?"Você atravessou a cidade e derrotou o Rei dos Zumbis Bobos! Pontos: "+score+" • Moedas: "+coins:"Você chegou à fase "+(stage+1)+". Pontos: "+score+" • Sobreviventes: "+rescued;$("bossBox").classList.add("hidden")}
+function render(){const s=stages[stage]||stages[0];camera.x=Math.max(0,Math.min(W-cw,player.x-cw/2));camera.y=Math.max(0,Math.min(H-ch,player.y-ch/2));ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle=s.theme;ctx.fillRect(0,0,W,H);drawMap();for(const d of drops){ctx.fillStyle=d.type==="coin"?"#ffd166":"#ff5b67";ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill()}for(const su of survivors)if(!su.rescued){ctx.fillStyle="#ffd166";ctx.beginPath();ctx.arc(su.x,su.y,su.r,0,7);ctx.fill();ctx.fillStyle="#111";ctx.font="bold 12px sans-serif";ctx.fillText("!",su.x-3,su.y+4)}for(const z of enemies)drawZombie(z);if(boss)drawBoss();for(const b of bullets){ctx.fillStyle=WEAPONS[b.weapon].color;ctx.shadowBlur=10;ctx.shadowColor=WEAPONS[b.weapon].color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();ctx.shadowBlur=0}drawPlayer();for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;ctx.restore()}
+function drawMap(){ctx.strokeStyle="#ffffff12";for(let x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}for(const b of stages[stage].buildings){ctx.fillStyle="#17212a";ctx.fillRect(b[1],b[2],b[3],b[4]);ctx.strokeStyle="#718697";ctx.strokeRect(b[1],b[2],b[3],b[4]);ctx.font="46px serif";ctx.fillText(b[0],b[1]+b[3]/2-23,b[2]+b[4]/2+16)}}
+function drawZombie(z){ctx.fillStyle=z.poison>0?"#65d36e":z.freeze>0?"#8deaff":z.type==="runner"?"#d2e34f":"#70c45c";ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,7);ctx.fill();ctx.fillStyle="#132016";ctx.fillRect(z.x-7,z.y-5,4,4);ctx.fillRect(z.x+4,z.y-5,4,4)}
+function drawBoss(){ctx.fillStyle="#c53f52";ctx.beginPath();ctx.arc(boss.x,boss.y,boss.r,0,7);ctx.fill();ctx.fillStyle="#ffe66d";ctx.beginPath();ctx.arc(boss.x-13,boss.y-7,6,0,7);ctx.arc(boss.x+13,boss.y-7,6,0,7);ctx.fill()}
+function drawPlayer(){ctx.globalAlpha=player.inv>0&&Math.floor(player.inv/4)%2?.4:1;ctx.fillStyle="#4ca6ff";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,7);ctx.fill();const a=aim();ctx.strokeStyle=WEAPONS[player.weapon].color;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(player.x+Math.cos(a)*28,player.y+Math.sin(a)*28);ctx.stroke();ctx.globalAlpha=1}
+function loop(t){const dt=Math.min(32,t-(last||t-16));last=t;if(state==="playing"){update(dt);render()}requestAnimationFrame(loop)}requestAnimationFrame(loop);
+$("startBtn").onclick=()=>{hero=$("heroSelect").value;difficulty=$("difficulty").value;resetGame();state="playing";$("startScreen").classList.add("hidden");updateHud()};
+$("restartBtn").onclick=()=>{$("gameOver").classList.add("hidden");resetGame();state="playing"};$("pauseBtn").onclick=()=>{if(state==="playing")state="paused";else if(state==="paused")state="playing";showMsg(state==="paused"?"PAUSADO":"CONTINUANDO")};
+$("sheetBtn").onclick=()=>openModal("<h2>📋 Ficha do Herói</h2><div class='statGrid'><div class='stat'>Nível<b>"+level+"</b></div><div class='stat'>XP<b>"+xp+"</b></div><div class='stat'>Pontos<b>"+score+"</b></div><div class='stat'>Vida<b>"+player.hp+"</b></div><div class='stat'>Resgatados<b>"+rescued+"</b></div><div class='stat'>Arma<b>"+player.weaponLevel+"/30</b></div></div><p>Especial: <b>E</b> • Taco: <b>F</b> • Dash: <b>Shift</b></p>");
+$("inventoryBtn").onclick=()=>{let html="<h2>🎒 Arsenal</h2><div class='weaponList'>";for(const id in WEAPONS){const w=WEAPONS[id];html+="<div class='weaponRow "+(player.weapon===id?"active":"")+"'><span>"+w.name+"<br><small>"+w.desc+"</small></span><button onclick=\"buyWeapon('"+id+"')\">"+(player.weapon===id?"USANDO":"20 🪙")+"</button></div>"}html+="</div>";openModal(html)};$("closeModal").onclick=closeModal;
+canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top});canvas.addEventListener("mousedown",e=>{if(e.button===0)mouse.down=true});addEventListener("mouseup",()=>mouse.down=false);
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==="e"){const near=survivors.find(s=>!s.rescued&&Math.hypot(s.x-player.x,s.y-player.y)<55);if(near||stages[stage].buildings.some(v=>player.x>v[1]-25&&player.x<v[1]+v[3]+25&&player.y>v[2]-25&&player.y<v[2]+v[4]+25))interact();else special()}if(e.key.toLowerCase()==="f")melee();if(e.key.toLowerCase()==="i")$("inventoryBtn").click();if(e.key.toLowerCase()==="c")$("sheetBtn").click();if(e.key.toLowerCase()==="p")$("pauseBtn").click()});addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+document.querySelectorAll("[data-key]").forEach(b=>{const k=b.dataset.key;b.addEventListener("pointerdown",()=>keys[k]=true);b.addEventListener("pointerup",()=>keys[k]=false);b.addEventListener("pointerleave",()=>keys[k]=false)});$("mobileSpecial").onclick=special;$("mobileMelee").onclick=melee;canvas.addEventListener("contextmenu",e=>e.preventDefault());
+})();
